@@ -27,6 +27,7 @@ The main project web page for this module is:
 
     http://sourceforge.net/projects/sendmail-milter/
 
+
 Prerequisites
 -------------
 
@@ -62,9 +63,15 @@ distribution to find out how to build sendmail with the Mail Filter API.
 Building Sendmail::Milter
 -------------------------
 
+Begin by building sendmail, libmilter, and perl with -Dusethreads. Next,
+perform the following commands:
+
 % perl Makefile.PL ../sendmail ../sendmail/obj.FreeBSD.4.0-RELEASE.i386
 % make
 % make install
+
+The paths ../sendmail and ../sendmail/obj.FreeBSD.4.0-RELEASE.i386 should point
+to the sendmail source tree and the sendmail build directory, respectively.
 
 
 Using Sendmail::Milter
@@ -84,7 +91,7 @@ following command:
 
 But before you do that, add a line similar to:
 
-INPUT_MAIL_FILTER(`myfilter', `S=unix:/var/run/perl.sock, F=R')dnl
+INPUT_MAIL_FILTER(`myfilter', `S=local:/var/run/perl.sock')dnl
 
 to your .mc file. sample.pl isn't terribly interesting, but should give you a
 good feel for how mail filters are written with Sendmail::Milter.
@@ -96,11 +103,3 @@ Mailing List
 You can subscribe to the sendmail-milter-users@lists.sourceforge.net mailing
 list. Instructions on how to do so can be found off the Sendmail::Milter
 project page.
-
-
-Known Bugs
-----------
-
-It seems that replacing message bodies of large sizes is not very reliable with
-Milter in beta versions of sendmail 8.11.0. They should be fixed in the release
-version.

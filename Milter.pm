@@ -61,7 +61,7 @@ our @EXPORT = qw(
 	SMFI_V2_ACTS
 );
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 sub AUTOLOAD {
     # This AUTOLOAD is used to 'autoload' constants from the constant()
@@ -297,7 +297,7 @@ information string before calling this function.
 
 Sets the connection information string for the filter. The format of this
 string is identical to that found in the Milter documentation. Some examples
-are C<unix:/var/run/f1.sock>, C<inet6:999@localhost>, C<inet:3333@localhost>.
+are C<local:/var/run/f1.sock>, C<inet6:999@localhost>, C<inet:3333@localhost>.
 
 This function returns nonzero upon success, the undefined value otherwise.
 
@@ -766,6 +766,8 @@ Enables the set of capabilities available to mail filters in V2 of Milter.
   {
 	my $ctx = shift;
 	my $body_ref = $ctx->getpriv();
+
+	# Note: This doesn't support messages with MIME data.
 
 	${$body_ref} .= "---> Append me to this message body!\n";
 

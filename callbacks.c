@@ -15,6 +15,8 @@
 
 #include "libmilter/mfapi.h"
 
+/* Keys for each callback for the register callback hash */
+
 #define KEY_CONNECT	newSVpv("connect", 0)
 #define KEY_HELO	newSVpv("helo", 0)
 #define KEY_ENVFROM	newSVpv("envfrom", 0)
@@ -26,9 +28,39 @@
 #define KEY_ABORT	newSVpv("abort", 0)
 #define KEY_CLOSE	newSVpv("close", 0)
 
+/* Macro for pushing the SMFICTX * argument */
+
 #define XPUSHs_Sendmail_Milter_Context	\
 	(XPUSHs(sv_2mortal(sv_setref_iv(NEWSV(25, 0), \
 		"Sendmail::Milter::Context", (IV) ctx))))
+
+/* Global callback variable names */
+
+#define GLOBAL_CONNECT		"Sendmail::Milter::Callbacks::_xxfi_connect"
+#define GLOBAL_HELO		"Sendmail::Milter::Callbacks::_xxfi_helo"
+#define GLOBAL_ENVFROM		"Sendmail::Milter::Callbacks::_xxfi_envfrom"
+#define GLOBAL_ENVRCPT		"Sendmail::Milter::Callbacks::_xxfi_envrcpt"
+#define GLOBAL_HEADER		"Sendmail::Milter::Callbacks::_xxfi_header"
+#define GLOBAL_EOH		"Sendmail::Milter::Callbacks::_xxfi_eoh"
+#define GLOBAL_BODY		"Sendmail::Milter::Callbacks::_xxfi_body"
+#define GLOBAL_EOM		"Sendmail::Milter::Callbacks::_xxfi_eom"
+#define GLOBAL_ABORT		"Sendmail::Milter::Callbacks::_xxfi_abort"
+#define GLOBAL_CLOSE		"Sendmail::Milter::Callbacks::_xxfi_close"
+
+
+/* Callback prototypes for first-level callback wrappers. */
+
+sfsistat hook_connect(SMFICTX *, char *, _SOCK_ADDR *);
+sfsistat hook_helo(SMFICTX *, char *);
+sfsistat hook_envfrom(SMFICTX *, char **);
+sfsistat hook_envrcpt(SMFICTX *, char **);
+sfsistat hook_header(SMFICTX *, char *, char *);
+sfsistat hook_eoh(SMFICTX *);
+sfsistat hook_body(SMFICTX *, u_char *, size_t);
+sfsistat hook_eom(SMFICTX *);
+sfsistat hook_abort(SMFICTX *);
+sfsistat hook_close(SMFICTX *);
+
 
 /* A structure for housing callbacks and their mutexes. */
 
@@ -49,37 +81,9 @@ struct callback_cache_t
 typedef struct callback_cache_t callback_cache_t;
 
 
-/* Callback prototypes for first-level callback wrappers. */
-
-sfsistat hook_connect(SMFICTX *, char *, _SOCK_ADDR *);
-sfsistat hook_helo(SMFICTX *, char *);
-sfsistat hook_envfrom(SMFICTX *, char **);
-sfsistat hook_envrcpt(SMFICTX *, char **);
-sfsistat hook_header(SMFICTX *, char *, char *);
-sfsistat hook_eoh(SMFICTX *);
-sfsistat hook_body(SMFICTX *, u_char *, size_t);
-sfsistat hook_eom(SMFICTX *);
-sfsistat hook_abort(SMFICTX *);
-sfsistat hook_close(SMFICTX *);
-
-
 /* The Milter perl interpreter pool */
 
 static intpool_t I_pool;
-
-
-/* Global callback variable names */
-
-#define GLOBAL_CONNECT		"Sendmail::Milter::Callbacks::_xxfi_connect"
-#define GLOBAL_HELO		"Sendmail::Milter::Callbacks::_xxfi_helo"
-#define GLOBAL_ENVFROM		"Sendmail::Milter::Callbacks::_xxfi_envfrom"
-#define GLOBAL_ENVRCPT		"Sendmail::Milter::Callbacks::_xxfi_envrcpt"
-#define GLOBAL_HEADER		"Sendmail::Milter::Callbacks::_xxfi_header"
-#define GLOBAL_EOH		"Sendmail::Milter::Callbacks::_xxfi_eoh"
-#define GLOBAL_BODY		"Sendmail::Milter::Callbacks::_xxfi_body"
-#define GLOBAL_EOM		"Sendmail::Milter::Callbacks::_xxfi_eom"
-#define GLOBAL_ABORT		"Sendmail::Milter::Callbacks::_xxfi_abort"
-#define GLOBAL_CLOSE		"Sendmail::Milter::Callbacks::_xxfi_close"
 
 
 /* Routines for managing callback caches */
@@ -98,8 +102,8 @@ init_callback_cache(pTHX_ interp_t *interp)
 
 	cache_ptr->xxfi_connect =	get_sv(GLOBAL_CONNECT,	FALSE);
 	cache_ptr->xxfi_helo =		get_sv(GLOBAL_HELO,	FALSE);
-	cache_ptr->xxfi_envfrom =	get_sv(GLOBAL_ENVFROM, FALSE);
-	cache_ptr->xxfi_envrcpt =	get_sv(GLOBAL_ENVRCPT, FALSE);
+	cache_ptr->xxfi_envfrom =	get_sv(GLOBAL_ENVFROM,	FALSE);
+	cache_ptr->xxfi_envrcpt =	get_sv(GLOBAL_ENVRCPT,	FALSE);
 	cache_ptr->xxfi_header =	get_sv(GLOBAL_HEADER,	FALSE);
 	cache_ptr->xxfi_eoh =		get_sv(GLOBAL_EOH,	FALSE);
 	cache_ptr->xxfi_body =		get_sv(GLOBAL_BODY,	FALSE);

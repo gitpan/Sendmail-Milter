@@ -1,6 +1,9 @@
 Revision history for Perl extension Sendmail::Milter.
 
-0.14  In Progress
+0.15  Wed Jul 19 19:15:49 2000
+	- Tested against sendmail 8.11.0 release.
+	- Updated README against released sendmail 8.11.0.
+0.14  Tue Jul 18 08:28:00 2000
 	- Now store code refs in globals to avoid sv_dup.
 	- Update README with SourceForge information.
 0.12  Thu Jul 13 11:16:17 2000

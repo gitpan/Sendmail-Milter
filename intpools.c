@@ -230,7 +230,8 @@ lock_interpreter(ipool)
 	**          interpreters that are locked in the system.
 	*/
 
-	while ( !((ipool->ip_max == 0) || (ipool->ip_busycount < ipool->ip_max)) )
+	while ( !((ipool->ip_max == 0) ||
+		  (ipool->ip_busycount < ipool->ip_max)) )
 	{
 		/* No. */
 
@@ -265,7 +266,7 @@ lock_interpreter(ipool)
 		/* Increment the number of busy interpreters */
 		ipool->ip_busycount++;
 	}
-	else /* ((ipool->ip_max == 0) || (ipool->ip_busycount < ipool->ip_max)) */
+	else /* No, there aren't, but we can still create one. */
 	{
 		new_interp = create_interpreter(ipool);
 
@@ -325,7 +326,8 @@ unlock_interpreter(ipool, busy_interp)
 	/* Decrement the number of busy interpreters */	
 	ipool->ip_busycount--;
 
-	if ((ipool->ip_retire != 0) && (busy_interp->requests > ipool->ip_retire))
+	if ((ipool->ip_retire != 0) &&
+	    (busy_interp->requests > ipool->ip_retire))
 	{
 		/* Interpreter is too old, recycle it. */
 		cleanup_interpreter(ipool, busy_interp);
@@ -463,14 +465,6 @@ test_run_callback(pTHX_ SV *callback)
 
 	printf("test_wrapper: Calling callback 0x%08x from aTHX 0x%08x.\n",
 		callback, aTHX);
-
-	/*
-	**  Okay, heavily undocumented, but here's the dirt...
-	**  Turns out from reading dougm's modperl_callback code that
-	**  CvPADLIST isn't being properly duplicated. Apparently this sv_dup
-	**  seems to fix the problem after poking around sv.c a bit. But I
-	**  could be wrong. Very, very, wrong. We shall see.
-	*/
 
 	call_sv(callback, G_DISCARD);
 

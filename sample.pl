@@ -136,8 +136,15 @@ sub eom_callback
 	print "   + adding line to message body...\n";
 
 	# Let's have some fun...
+	# Note: This doesn't support messages with MIME data.
+
+	# Pig-Latin, Babelfish, Double dutch, soo many possibilities!
+	# But we're boring...
 
 	push @{$body_ref}, "---> Append me to this message body!\r\n";
+
+	# We don't concat all the message data together simply
+	# to reinforce that multiple chunks can (and will) be received.
 
 	foreach $chunk (@{$body_ref})
 	{
@@ -207,7 +214,7 @@ BEGIN:
 
 	print "Found connection info for '$ARGV[0]': $conn\n";
 
-	if ($conn =~ /^unix:(.+)$/)
+	if ($conn =~ /^local:(.+)$/)
 	{
 		my $unix_socket = $1;
 
@@ -226,7 +233,7 @@ BEGIN:
 
 	if (not Sendmail::Milter::auto_setconn($ARGV[0], $ARGV[1]))
 	{
-		print "Failed to automatically detect connection information.\n";
+		print "Failed to detect connection information.\n";
 		exit;
 	}
 
@@ -246,14 +253,14 @@ BEGIN:
 		exit;
 	}
 
-	print "Starting Sendmail::Milter engine...\n";
+	print "Starting Sendmail::Milter $Sendmail::Milter::VERSION engine.\n";
 
 	if (Sendmail::Milter::main())
 	{
-		print "Exited successfully from the Sendmail::Milter engine.\n";
+		print "Successful exit from the Sendmail::Milter engine.\n";
 	}
 	else
 	{
-		print "Exited unsuccessfully from the Sendmail::Milter engine.\n";
+		print "Unsuccessful exit from the Sendmail::Milter engine.\n";
 	}
 }
