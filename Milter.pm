@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2000 Charles Ying. All rights reserved.
+# Copyright (c) 2000-2001 Charles Ying. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the same terms as sendmail itself.
@@ -62,7 +62,7 @@ our @EXPORT = qw(
 	SMFI_V2_ACTS
 );
 
-our $VERSION = '0.17';
+our $VERSION = '0.18';
 
 sub AUTOLOAD {
     # This AUTOLOAD is used to 'autoload' constants from the constant()
@@ -147,8 +147,9 @@ sub auto_getconn
 		chomp $line;
 
 		# Just ignore rest of line in case it's F=T, T=blah...
+		# Or just T=blah...
 	
-		if ($line =~ /^X(.+),\s*S\=(.+),\s*F\=(.)/)
+		if ($line =~ /^X(.+),\s*S\=(.+),\s*[FT]\=(.)/)
 		{
 			$current_name = $1;
 			$conn_info = $2;
@@ -818,13 +819,13 @@ See the B<test.pl> sample test case for more callback examples.
 
 =head1 AUTHOR
 
-Charles Ying, cying@sendmail.com, Sendmail, Inc.
+Charles Ying, cying@cpan.org.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000 Charles Ying. All rights reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as
-sendmail itself.
+Copyright (c) 2000-2001 Charles Ying. All rights reserved. This program is
+free software; you can redistribute it and/or modify it under the same terms
+as sendmail itself.
 
 The interpreter pools portion (found in the intpools.c, intpools.h, and test.pl
 files) of this code is also available under the same terms as perl itself.

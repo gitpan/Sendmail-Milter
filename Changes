@@ -1,5 +1,10 @@
 Revision history for Perl extension Sendmail::Milter.
 
+0.18  Tue Oct  9 21:38:09 2001
+	- Patches to properly link with sendmail 8.12.1. Fixed
+	  auto_setconn to support abbreviated T= syntax. Thanks to
+	  Derek J. Balling of Yahoo, Inc.
+	- Updates to documentation to reflect sendmail 8.12.1.
 0.17  Sat Jul 29 09:55:02 2000
 	- Fixed build to properly link on Solaris. Thanks to 
 	  Claus Assmann of Sendmail, Inc.

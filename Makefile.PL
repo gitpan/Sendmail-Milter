@@ -26,6 +26,7 @@ my $SENDMAIL_OBJ_PATH = MM->canonpath($ARGV[1]);
 
 my $MILTER_LIB = MM->catdir($SENDMAIL_OBJ_PATH, "libmilter");
 my $SMUTIL_LIB = MM->catdir($SENDMAIL_OBJ_PATH, "libsmutil");
+my $SM_LIB = MM->catdir($SENDMAIL_OBJ_PATH, "libsm");
 my $MILTER_INCLUDE = MM->catdir($SENDMAIL_PATH, "include");
 my $SENDMAIL_INCLUDE = MM->catdir($SENDMAIL_PATH, "sendmail");
 
@@ -36,7 +37,7 @@ sub milter_configure
 	my $ccflags;
 
 	# Standard milter libraries
-	$libs = "-L$MILTER_LIB -L$SMUTIL_LIB -lmilter -lsmutil";
+	$libs = "-L$MILTER_LIB -L$SMUTIL_LIB -L$SM_LIB -lmilter -lsmutil -lsm";
 
 	# POSIX threads support.
 	if ($Config{libs} =~ /-lpthread/)
