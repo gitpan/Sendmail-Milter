@@ -1,5 +1,8 @@
 Revision history for Perl extension Sendmail::Milter.
 
+0.17  Sat Jul 29 09:55:02 2000
+	- Fixed build to properly link on Solaris. Thanks to 
+	  Claus Assmann of Sendmail, Inc.
 0.16  Mon Jul 24 05:37:59 2000
 	- Fixed bug in detecting no F= flags in auto_getconn().
 0.15  Wed Jul 19 19:15:49 2000

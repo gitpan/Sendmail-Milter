@@ -7,7 +7,8 @@
 
 package Sendmail::Milter;
 
-require 5.6.0;
+use 5.006;
+
 use strict;
 use warnings;
 use Carp;
@@ -61,7 +62,7 @@ our @EXPORT = qw(
 	SMFI_V2_ACTS
 );
 
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 
 sub AUTOLOAD {
     # This AUTOLOAD is used to 'autoload' constants from the constant()

@@ -1,6 +1,6 @@
-use strict;
+use 5.006;
 
-require 5.6.0;
+use strict;
 
 use ExtUtils::MakeMaker;
 use Config;
@@ -21,19 +21,64 @@ if (not $Config{usethreads})
 	exit;
 }
 
-
 my $SENDMAIL_PATH = MM->canonpath($ARGV[0]);
 my $SENDMAIL_OBJ_PATH = MM->canonpath($ARGV[1]);
 
 my $MILTER_LIB = MM->catdir($SENDMAIL_OBJ_PATH, "libmilter");
+my $SMUTIL_LIB = MM->catdir($SENDMAIL_OBJ_PATH, "libsmutil");
 my $MILTER_INCLUDE = MM->catdir($SENDMAIL_PATH, "include");
 my $SENDMAIL_INCLUDE = MM->catdir($SENDMAIL_PATH, "sendmail");
+
+sub milter_configure
+{
+	my $hash_ref = {};
+	my $libs;
+	my $ccflags;
+
+	# Standard milter libraries
+	$libs = "-L$MILTER_LIB -L$SMUTIL_LIB -lmilter -lsmutil";
+
+	# POSIX threads support.
+	if ($Config{libs} =~ /-lpthread/)
+	{
+		$libs .= " -lpthread";
+	}
+	else
+	{
+		$ccflags = '-pthread';
+	}
+
+	# Solaris 2.6 -lsocket -lnsl support.
+	if ($Config{libs} =~ /-lsocket/)
+	{
+		$libs .= " -lsocket";
+	}
+	if ($Config{libs} =~ /-lnsl/)
+	{
+		$libs .= " -lnsl";
+	}
+
+	# Solaris and inet_aton / inet_pton functions.
+	if (($^O eq 'solaris') && (not $Config{d_inetaton}))
+	{
+		$libs .= " -lresolv";
+	}
+
+	# Only set the CCFLAGS variable if there's something.
+	if ($ccflags)
+	{
+		$hash_ref->{'CCFLAGS'} = $ccflags;
+	}
+
+	$hash_ref->{'LIBS'} = [ "$libs" ];
+
+	return $hash_ref;
+}
 
 WriteMakefile(
     'NAME'		=> 'Sendmail::Milter',
     'VERSION_FROM'	=> 'Milter.pm',
-    'CCFLAGS'		=> '-pthread',
-    'LIBS'		=> ["-L$MILTER_LIB -lmilter"],
+    'CONFIGURE'		=> \&milter_configure,
     'OBJECT'		=> '$(BASEEXT)$(OBJ_EXT) intpools$(OBJ_EXT) callbacks$(OBJ_EXT)',
     'DEFINE'		=> '',
     'INC'		=> "-I$SENDMAIL_INCLUDE -I$MILTER_INCLUDE",
