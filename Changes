@@ -1,5 +1,7 @@
 Revision history for Perl extension Sendmail::Milter.
 
+0.16  Mon Jul 24 05:37:59 2000
+	- Fixed bug in detecting no F= flags in auto_getconn().
 0.15  Wed Jul 19 19:15:49 2000
 	- Tested against sendmail 8.11.0 release.
 	- Updated README against released sendmail 8.11.0.

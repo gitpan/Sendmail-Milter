@@ -61,7 +61,7 @@ our @EXPORT = qw(
 	SMFI_V2_ACTS
 );
 
-our $VERSION = '0.15';
+our $VERSION = '0.16';
 
 sub AUTOLOAD {
     # This AUTOLOAD is used to 'autoload' constants from the constant()
@@ -156,7 +156,17 @@ sub auto_getconn
 			{
 				return $conn_info;
 			}
-		} 
+		}
+		elsif ($line =~ /^X(.+),\s*S\=(.+)/)
+		{
+			$current_name = $1;
+			$conn_info = $2;
+
+			if ($current_name eq $name)
+			{
+				return $conn_info;
+			}
+		}
 	}
 
 	return undef;

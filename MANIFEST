@@ -13,3 +13,4 @@ callbacks.h
 typemap
 sample.pl
 test.pl
+sm_test.pl

@@ -52,9 +52,13 @@ sub envfrom_callback
 {
 	my $ctx = shift;
 	my @args = @_;
+	my $message = "";
 
 	print "my_envfrom:\n";
 	print "   + args: '" . join(', ', @args) . "'\n";
+
+	$ctx->setpriv(\$message);
+	print "   + private data allocated.\n";
 
 	print "   + callback completed.\n";
 
@@ -92,13 +96,8 @@ sub header_callback
 sub eoh_callback
 {
 	my $ctx = shift;
-	my @body = ();
 
 	print "my_eoh:\n";
-
-	$ctx->setpriv(\@body);
-	print "   + private data allocated.\n";
-
 	print "   + callback completed.\n";
 
 	return SMFIS_CONTINUE;
@@ -109,7 +108,7 @@ sub body_callback
 	my $ctx = shift;
 	my $body_chunk = shift;
 	my $len = shift;
-	my $body_ref = $ctx->getpriv();
+	my $message_ref = $ctx->getpriv();
 
 	# Note: You don't need $len to have a good time.
 	# But it's there if you like.
@@ -117,9 +116,9 @@ sub body_callback
 	print "my_body:\n";
 	print "   + chunk len: $len\n";
 
-	push @{$body_ref}, $body_chunk;
+	${$message_ref} .= $body_chunk;
 
-	$ctx->setpriv($body_ref);
+	$ctx->setpriv($message_ref);
 
 	print "   + callback completed.\n";
 
@@ -129,7 +128,7 @@ sub body_callback
 sub eom_callback
 {
 	my $ctx = shift;
-	my $body_ref = $ctx->getpriv();
+	my $message_ref = $ctx->getpriv();
 	my $chunk;
 
 	print "my_eom:\n";
@@ -141,19 +140,12 @@ sub eom_callback
 	# Pig-Latin, Babelfish, Double dutch, soo many possibilities!
 	# But we're boring...
 
-	push @{$body_ref}, "---> Append me to this message body!\r\n";
+	${$message_ref} .= "---> Append me to this message body!\r\n";
 
-	# We don't concat all the message data together simply
-	# to reinforce that multiple chunks can (and will) be received.
-
-	foreach $chunk (@{$body_ref})
+	if (not $ctx->replacebody(${$message_ref}))
 	{
-		print "   + writing chunk with size: " . length($chunk) . "\n";
-		if (not $ctx->replacebody($chunk))
-		{
-			print "   - write error!\n";
-			last;
-		}
+		print "   - write error!\n";
+		last;
 	}
 
 	$ctx->setpriv(undef);
