@@ -32,13 +32,21 @@
 
 /* A structure for housing callbacks and their mutexes. */
 
-struct callback_t
+struct callback_cache_t
 {
-	SV *sv;
-	pthread_mutex_t sv_mutex;
+	SV *xxfi_connect;
+	SV *xxfi_helo;
+	SV *xxfi_envfrom;
+	SV *xxfi_envrcpt;
+	SV *xxfi_header;
+	SV *xxfi_eoh;
+	SV *xxfi_body;
+	SV *xxfi_eom;
+	SV *xxfi_abort;
+	SV *xxfi_close;
 };
 
-typedef struct callback_t callback_t;
+typedef struct callback_cache_t callback_cache_t;
 
 
 /* Callback prototypes for first-level callback wrappers. */
@@ -60,68 +68,56 @@ sfsistat hook_close(SMFICTX *);
 static intpool_t I_pool;
 
 
-/* Callback structures for each callback. */
+/* Global callback variable names */
 
-static callback_t CB_connect;
-static callback_t CB_helo;
-static callback_t CB_envfrom;
-static callback_t CB_envrcpt;
-static callback_t CB_header;
-static callback_t CB_eoh;
-static callback_t CB_body;
-static callback_t CB_eom;
-static callback_t CB_abort;
-static callback_t CB_close;
+#define GLOBAL_CONNECT		"Sendmail::Milter::Callbacks::_xxfi_connect"
+#define GLOBAL_HELO		"Sendmail::Milter::Callbacks::_xxfi_helo"
+#define GLOBAL_ENVFROM		"Sendmail::Milter::Callbacks::_xxfi_envfrom"
+#define GLOBAL_ENVRCPT		"Sendmail::Milter::Callbacks::_xxfi_envrcpt"
+#define GLOBAL_HEADER		"Sendmail::Milter::Callbacks::_xxfi_header"
+#define GLOBAL_EOH		"Sendmail::Milter::Callbacks::_xxfi_eoh"
+#define GLOBAL_BODY		"Sendmail::Milter::Callbacks::_xxfi_body"
+#define GLOBAL_EOM		"Sendmail::Milter::Callbacks::_xxfi_eom"
+#define GLOBAL_ABORT		"Sendmail::Milter::Callbacks::_xxfi_abort"
+#define GLOBAL_CLOSE		"Sendmail::Milter::Callbacks::_xxfi_close"
 
 
-/* Routines for managing callback_t's. */
+/* Routines for managing callback caches */
 
 void
-init_callback(cb_ptr, new_sv)
-	callback_t	*cb_ptr;
-	SV		*new_sv;
+init_callback_cache(pTHX_ interp_t *interp)
 {
-	int error;
+	callback_cache_t *cache_ptr;
 
-	memset(cb_ptr, '\0', sizeof(callback_t));
+	if (interp->cache != NULL)
+		return;
 
-	/* Assign the sv */
-	cb_ptr->sv = new_sv;
+	alloc_interpreter_cache(interp, sizeof(callback_cache_t));
 
-	/* Initialize the mutex */
-	if ((error = pthread_mutex_init(&(cb_ptr->sv_mutex), NULL)) != 0)
-		croak("callback pthread_mutex_init failed: %d", error);
+	cache_ptr = (callback_cache_t *)interp->cache;
+
+	cache_ptr->xxfi_connect =	get_sv(GLOBAL_CONNECT,	FALSE);
+	cache_ptr->xxfi_helo =		get_sv(GLOBAL_HELO,	FALSE);
+	cache_ptr->xxfi_envfrom =	get_sv(GLOBAL_ENVFROM, FALSE);
+	cache_ptr->xxfi_envrcpt =	get_sv(GLOBAL_ENVRCPT, FALSE);
+	cache_ptr->xxfi_header =	get_sv(GLOBAL_HEADER,	FALSE);
+	cache_ptr->xxfi_eoh =		get_sv(GLOBAL_EOH,	FALSE);
+	cache_ptr->xxfi_body =		get_sv(GLOBAL_BODY,	FALSE);
+	cache_ptr->xxfi_eom =		get_sv(GLOBAL_EOM,	FALSE);
+	cache_ptr->xxfi_abort =		get_sv(GLOBAL_ABORT,	FALSE);
+	cache_ptr->xxfi_close =		get_sv(GLOBAL_CLOSE,	FALSE);
 }
 
 
-SV *
-get_local_sv(pTHX_ callback_t *cb_ptr)
+/* Set global variables in the parent interpreter. */
+
+void
+init_callback(char *var_name, SV *parent_callback)
 {
-	SV *local_callback;
-	int error;
+	SV *new_sv;
 
-	/*
-	**  Okay, heavily undocumented, but here's the dirt...
-	**  Turns out from reading dougm's modperl_callback code that
-	**  CvPADLIST isn't being properly duplicated. Apparently this sv_dup
-	**  seems to fix the problem after poking around sv.c a bit. But I
-	**  could be wrong. Very, very, wrong. We shall see.
-	*/
-
-	/* Lock CVs */
-	if ((error = pthread_mutex_lock(&(cb_ptr->sv_mutex))) != 0)
-		croak("mutex_lock failed in locking CV: %d", error);
-
-	if (!SvPOK(cb_ptr->sv))
-		local_callback = sv_dup(cb_ptr->sv);
-	else
-		local_callback = sv_2mortal(newSVsv(cb_ptr->sv));
-
-	/* Unlock interpreter table */
-	if ((error = pthread_mutex_unlock(&(cb_ptr->sv_mutex))) != 0)
-		croak("mutex_unlock failed in unlocking CV: %d", error);
-
-	return local_callback;
+	new_sv = get_sv(var_name, TRUE);
+	sv_setsv(new_sv, parent_callback);
 }
 
 
@@ -167,7 +163,7 @@ register_callbacks(desc, name, my_callback_table, flags)
 
 	if (hv_exists_ent(my_callback_table, KEY_CONNECT, 0))
 	{
-		init_callback(&CB_connect,
+		init_callback(GLOBAL_CONNECT,
 			get_callback(my_callback_table, KEY_CONNECT));
 
 		desc->xxfi_connect =	hook_connect;
@@ -175,7 +171,7 @@ register_callbacks(desc, name, my_callback_table, flags)
 
 	if (hv_exists_ent(my_callback_table, KEY_HELO, 0))
 	{
-		init_callback(&CB_helo,
+		init_callback(GLOBAL_HELO,
 			get_callback(my_callback_table, KEY_HELO));
 
 		desc->xxfi_helo	=	hook_helo;
@@ -183,7 +179,7 @@ register_callbacks(desc, name, my_callback_table, flags)
 
 	if (hv_exists_ent(my_callback_table, KEY_ENVFROM, 0))
 	{
-		init_callback(&CB_envfrom,
+		init_callback(GLOBAL_ENVFROM,
 			get_callback(my_callback_table, KEY_ENVFROM));
 
 		desc->xxfi_envfrom =	hook_envfrom;
@@ -191,7 +187,7 @@ register_callbacks(desc, name, my_callback_table, flags)
 
 	if (hv_exists_ent(my_callback_table, KEY_ENVRCPT, 0))
 	{
-		init_callback(&CB_envrcpt,
+		init_callback(GLOBAL_ENVRCPT,
 			get_callback(my_callback_table, KEY_ENVRCPT));
 
 		desc->xxfi_envrcpt =	hook_envrcpt;
@@ -199,7 +195,7 @@ register_callbacks(desc, name, my_callback_table, flags)
 
 	if (hv_exists_ent(my_callback_table, KEY_HEADER, 0))
 	{
-		init_callback(&CB_header,
+		init_callback(GLOBAL_HEADER,
 			get_callback(my_callback_table, KEY_HEADER));
 
 		desc->xxfi_header =	hook_header;
@@ -207,7 +203,7 @@ register_callbacks(desc, name, my_callback_table, flags)
 
 	if (hv_exists_ent(my_callback_table, KEY_EOH, 0))
 	{
-		init_callback(&CB_eoh,
+		init_callback(GLOBAL_EOH,
 			get_callback(my_callback_table, KEY_EOH));
 
 		desc->xxfi_eoh =	hook_eoh;
@@ -215,7 +211,7 @@ register_callbacks(desc, name, my_callback_table, flags)
 
 	if (hv_exists_ent(my_callback_table, KEY_BODY, 0))
 	{
-		init_callback(&CB_body,
+		init_callback(GLOBAL_BODY,
 			get_callback(my_callback_table, KEY_BODY));
 
 		desc->xxfi_body =	hook_body;
@@ -223,7 +219,7 @@ register_callbacks(desc, name, my_callback_table, flags)
 
 	if (hv_exists_ent(my_callback_table, KEY_EOM, 0))
 	{
-		init_callback(&CB_eom,
+		init_callback(GLOBAL_EOM,
 			get_callback(my_callback_table, KEY_EOM));
 
 		desc->xxfi_eom =	hook_eom;
@@ -231,7 +227,7 @@ register_callbacks(desc, name, my_callback_table, flags)
 
 	if (hv_exists_ent(my_callback_table, KEY_ABORT, 0))
 	{
-		init_callback(&CB_abort,
+		init_callback(GLOBAL_ABORT,
 			get_callback(my_callback_table, KEY_ABORT));
 
 		desc->xxfi_abort =	hook_abort;
@@ -239,7 +235,7 @@ register_callbacks(desc, name, my_callback_table, flags)
 
 	if (hv_exists_ent(my_callback_table, KEY_CLOSE, 0))
 	{
-		init_callback(&CB_close,
+		init_callback(GLOBAL_CLOSE,
 			get_callback(my_callback_table, KEY_CLOSE));
 
 		desc->xxfi_close =	hook_close;
@@ -250,7 +246,7 @@ register_callbacks(desc, name, my_callback_table, flags)
 /* Second-layer callbacks. These do the actual work. */
 
 sfsistat
-callback_noargs(pTHX_ callback_t *callback, SMFICTX *ctx)
+callback_noargs(pTHX_ SV *callback, SMFICTX *ctx)
 {
 	int n;
 	sfsistat retval;
@@ -263,7 +259,7 @@ callback_noargs(pTHX_ callback_t *callback, SMFICTX *ctx)
 
 	PUTBACK;
 
-	n = call_sv(get_local_sv(aTHX_ callback), G_EVAL | G_SCALAR);
+	n = call_sv(callback, G_EVAL | G_SCALAR);
 
 	SPAGAIN;
 
@@ -290,7 +286,7 @@ callback_noargs(pTHX_ callback_t *callback, SMFICTX *ctx)
 }
 
 sfsistat
-callback_s(pTHX_ callback_t *callback, SMFICTX *ctx, char *arg1)
+callback_s(pTHX_ SV *callback, SMFICTX *ctx, char *arg1)
 {
 	int n;
 	sfsistat retval;
@@ -304,7 +300,7 @@ callback_s(pTHX_ callback_t *callback, SMFICTX *ctx, char *arg1)
 
 	PUTBACK;
 
-	n = call_sv(get_local_sv(aTHX_ callback), G_EVAL | G_SCALAR);
+	n = call_sv(callback, G_EVAL | G_SCALAR);
 
 	SPAGAIN;
 
@@ -331,7 +327,7 @@ callback_s(pTHX_ callback_t *callback, SMFICTX *ctx, char *arg1)
 }
 
 sfsistat
-callback_body(pTHX_ callback_t *callback, SMFICTX *ctx,
+callback_body(pTHX_ SV *callback, SMFICTX *ctx,
 	            u_char *arg1, size_t arg2)
 {
 	int n;
@@ -347,7 +343,7 @@ callback_body(pTHX_ callback_t *callback, SMFICTX *ctx,
 
 	PUTBACK;
 
-	n = call_sv(get_local_sv(aTHX_ callback), G_EVAL | G_SCALAR);
+	n = call_sv(callback, G_EVAL | G_SCALAR);
 
 	SPAGAIN;
 
@@ -374,7 +370,7 @@ callback_body(pTHX_ callback_t *callback, SMFICTX *ctx,
 }
 
 sfsistat
-callback_argv(pTHX_ callback_t *callback, SMFICTX *ctx, char **arg1)
+callback_argv(pTHX_ SV *callback, SMFICTX *ctx, char **arg1)
 {
 	int n;
 	sfsistat retval;
@@ -397,7 +393,7 @@ callback_argv(pTHX_ callback_t *callback, SMFICTX *ctx, char **arg1)
 
 	PUTBACK;
 
-	n = call_sv(get_local_sv(aTHX_ callback), G_EVAL | G_SCALAR);
+	n = call_sv(callback, G_EVAL | G_SCALAR);
 
 	SPAGAIN;
 
@@ -424,7 +420,7 @@ callback_argv(pTHX_ callback_t *callback, SMFICTX *ctx, char **arg1)
 }
 
 sfsistat
-callback_ss(pTHX_ callback_t *callback, SMFICTX *ctx, char *arg1, char *arg2)
+callback_ss(pTHX_ SV *callback, SMFICTX *ctx, char *arg1, char *arg2)
 {
 	int n;
 	sfsistat retval;
@@ -439,7 +435,7 @@ callback_ss(pTHX_ callback_t *callback, SMFICTX *ctx, char *arg1, char *arg2)
 
 	PUTBACK;
 
-	n = call_sv(get_local_sv(aTHX_ callback), G_EVAL | G_SCALAR);
+	n = call_sv(callback, G_EVAL | G_SCALAR);
 
 	SPAGAIN;
 
@@ -466,7 +462,7 @@ callback_ss(pTHX_ callback_t *callback, SMFICTX *ctx, char *arg1, char *arg2)
 }
 
 sfsistat
-callback_ssockaddr(pTHX_ callback_t *callback, SMFICTX *ctx, char *arg1,
+callback_ssockaddr(pTHX_ SV *callback, SMFICTX *ctx, char *arg1,
 		   _SOCK_ADDR *arg_sa)
 {
 	int n;
@@ -497,7 +493,7 @@ callback_ssockaddr(pTHX_ callback_t *callback, SMFICTX *ctx, char *arg1,
 
 	PUTBACK;
 
-	n = call_sv(get_local_sv(aTHX_ callback), G_EVAL | G_SCALAR);
+	n = call_sv(callback, G_EVAL | G_SCALAR);
 
 	SPAGAIN;
 
@@ -534,13 +530,17 @@ hook_connect(ctx, hostname, hostaddr)
 {
 	interp_t *interp;
 	sfsistat retval;
+	SV *callback;
 
 	if ((interp = lock_interpreter(&I_pool)) == NULL)
 		croak("could not lock a new perl interpreter.");
 
 	PERL_SET_CONTEXT(interp->perl);
 
-	retval = callback_ssockaddr(aTHX_ &CB_connect, ctx,
+	init_callback_cache(aTHX_ interp);
+	callback = ((callback_cache_t *)(interp->cache))->xxfi_connect;
+
+	retval = callback_ssockaddr(aTHX_ callback, ctx,
 					  hostname, hostaddr);
 
 	unlock_interpreter(&I_pool, interp);
@@ -555,13 +555,17 @@ hook_helo(ctx, helohost)
 {
 	interp_t *interp;
 	sfsistat retval;
+	SV *callback;
 
 	if ((interp = lock_interpreter(&I_pool)) == NULL)
 		croak("could not lock a new perl interpreter.");
 
 	PERL_SET_CONTEXT(interp->perl);
 
-	retval = callback_s(aTHX_ &CB_helo, ctx, helohost);
+	init_callback_cache(aTHX_ interp);
+	callback = ((callback_cache_t *)(interp->cache))->xxfi_helo;
+
+	retval = callback_s(aTHX_ callback, ctx, helohost);
 
 	unlock_interpreter(&I_pool, interp);
 
@@ -575,13 +579,17 @@ hook_envfrom(ctx, argv)
 {
 	interp_t *interp;
 	sfsistat retval;
+	SV *callback;
 
 	if ((interp = lock_interpreter(&I_pool)) == NULL)
 		croak("could not lock a new perl interpreter.");
 
 	PERL_SET_CONTEXT(interp->perl);
 
-	retval = callback_argv(aTHX_ &CB_envfrom, ctx, argv);
+	init_callback_cache(aTHX_ interp);
+	callback = ((callback_cache_t *)(interp->cache))->xxfi_envfrom;
+
+	retval = callback_argv(aTHX_ callback, ctx, argv);
 
 	unlock_interpreter(&I_pool, interp);
 
@@ -595,13 +603,17 @@ hook_envrcpt(ctx, argv)
 {
 	interp_t *interp;
 	sfsistat retval;
+	SV *callback;
 
 	if ((interp = lock_interpreter(&I_pool)) == NULL)
 		croak("could not lock a new perl interpreter.");
 
 	PERL_SET_CONTEXT(interp->perl);
 
-	retval = callback_argv(aTHX_ &CB_envrcpt, ctx, argv);
+	init_callback_cache(aTHX_ interp);
+	callback = ((callback_cache_t *)(interp->cache))->xxfi_envrcpt;
+
+	retval = callback_argv(aTHX_ callback, ctx, argv);
 
 	unlock_interpreter(&I_pool, interp);
 
@@ -616,13 +628,17 @@ hook_header(ctx, headerf, headerv)
 {
 	interp_t *interp;
 	sfsistat retval;
+	SV *callback;
 
 	if ((interp = lock_interpreter(&I_pool)) == NULL)
 		croak("could not lock a new perl interpreter.");
 
 	PERL_SET_CONTEXT(interp->perl);
 
-	retval = callback_ss(aTHX_ &CB_header, ctx, headerf, headerv);
+	init_callback_cache(aTHX_ interp);
+	callback = ((callback_cache_t *)(interp->cache))->xxfi_header;
+
+	retval = callback_ss(aTHX_ callback, ctx, headerf, headerv);
 
 	unlock_interpreter(&I_pool, interp);
 
@@ -635,13 +651,17 @@ hook_eoh(ctx)
 {
 	interp_t *interp;
 	sfsistat retval;
+	SV *callback;
 
 	if ((interp = lock_interpreter(&I_pool)) == NULL)
 		croak("could not lock a new perl interpreter.");
 
 	PERL_SET_CONTEXT(interp->perl);
 
-	retval = callback_noargs(aTHX_ &CB_eoh, ctx);
+	init_callback_cache(aTHX_ interp);
+	callback = ((callback_cache_t *)(interp->cache))->xxfi_eoh;
+
+	retval = callback_noargs(aTHX_ callback, ctx);
 
 	unlock_interpreter(&I_pool, interp);
 
@@ -656,13 +676,17 @@ hook_body(ctx, bodyp, bodylen)
 {
 	interp_t *interp;
 	sfsistat retval;
+	SV *callback;
 
 	if ((interp = lock_interpreter(&I_pool)) == NULL)
 		croak("could not lock a new perl interpreter.");
 
 	PERL_SET_CONTEXT(interp->perl);
 
-	retval = callback_body(aTHX_ &CB_body, ctx, bodyp, bodylen);
+	init_callback_cache(aTHX_ interp);
+	callback = ((callback_cache_t *)(interp->cache))->xxfi_body;
+
+	retval = callback_body(aTHX_ callback, ctx, bodyp, bodylen);
 
 	unlock_interpreter(&I_pool, interp);
 
@@ -675,13 +699,17 @@ hook_eom(ctx)
 {
 	interp_t *interp;
 	sfsistat retval;
+	SV *callback;
 
 	if ((interp = lock_interpreter(&I_pool)) == NULL)
 		croak("could not lock a new perl interpreter.");
 
 	PERL_SET_CONTEXT(interp->perl);
 
-	retval = callback_noargs(aTHX_ &CB_eom, ctx);
+	init_callback_cache(aTHX_ interp);
+	callback = ((callback_cache_t *)(interp->cache))->xxfi_eom;
+
+	retval = callback_noargs(aTHX_ callback, ctx);
 
 	unlock_interpreter(&I_pool, interp);
 
@@ -694,13 +722,17 @@ hook_abort(ctx)
 {
 	interp_t *interp;
 	sfsistat retval;
+	SV *callback;
 
 	if ((interp = lock_interpreter(&I_pool)) == NULL)
 		croak("could not lock a new perl interpreter.");
 
 	PERL_SET_CONTEXT(interp->perl);
 
-	retval = callback_noargs(aTHX_ &CB_abort, ctx);
+	init_callback_cache(aTHX_ interp);
+	callback = ((callback_cache_t *)(interp->cache))->xxfi_abort;
+
+	retval = callback_noargs(aTHX_ callback, ctx);
 
 	unlock_interpreter(&I_pool, interp);
 
@@ -713,13 +745,17 @@ hook_close(ctx)
 {
 	interp_t *interp;
 	sfsistat retval;
+	SV *callback;
 
 	if ((interp = lock_interpreter(&I_pool)) == NULL)
 		croak("could not lock a new perl interpreter.");
 
 	PERL_SET_CONTEXT(interp->perl);
 
-	retval = callback_noargs(aTHX_ &CB_close, ctx);
+	init_callback_cache(aTHX_ interp);
+	callback = ((callback_cache_t *)(interp->cache))->xxfi_close;
+
+	retval = callback_noargs(aTHX_ callback, ctx);
 
 	unlock_interpreter(&I_pool, interp);
 

@@ -1,5 +1,8 @@
 Revision history for Perl extension Sendmail::Milter.
 
+0.14  In Progress
+	- Now store code refs in globals to avoid sv_dup.
+	- Update README with SourceForge information.
 0.12  Thu Jul 13 11:16:17 2000
 	- Include sendmail's LICENSE file.
 0.11  Thu Jul  6 22:46:26 2000

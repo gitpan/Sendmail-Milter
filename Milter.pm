@@ -61,7 +61,7 @@ our @EXPORT = qw(
 	SMFI_V2_ACTS
 );
 
-our $VERSION = '0.12';
+our $VERSION = '0.14';
 
 sub AUTOLOAD {
     # This AUTOLOAD is used to 'autoload' constants from the constant()
@@ -177,16 +177,16 @@ Sendmail::Milter - Interface to sendmail's Mail Filter API
 
   my %my_milter_callbacks =
   (
-	'connect' =>	'my_connect_callback',
-	'helo' =>	'my_helo_callback',
-	'envfrom' =>	'my_envfrom_callback',
-	'envrcpt' =>	'my_envrcpt_callback',
-	'header' =>	'my_header_callback',
-	'eoh' =>	'my_eoh_callback',
-	'body' =>	'my_body_callback',
-	'eom' =>	'my_eom_callback',
-	'abort' =>	'my_abort_callback',
-	'close' =>	'my_close_callback',
+	'connect' =>	\&my_connect_callback,
+	'helo' =>	\&my_helo_callback,
+	'envfrom' =>	\&my_envfrom_callback,
+	'envrcpt' =>	\&my_envrcpt_callback,
+	'header' =>	\&my_header_callback,
+	'eoh' =>	\&my_eoh_callback,
+	'body' =>	\&my_body_callback,
+	'eom' =>	\&my_eom_callback,
+	'abort' =>	\&my_abort_callback,
+	'close' =>	\&my_close_callback,
   );
 
   sub my_connect_callback;
@@ -254,9 +254,7 @@ the following keys:
 
 The values for these keys indicate the callback routine that is associated with
 each Milter callback. The values must be either function names, code references
-or closures. I would strongly recommend using function names, since you'll be
-guaranteed the proper op-code tree from your context; code references are still
-buggy under Perl 5.6.0.
+or closures.
 
 This function returns nonzero upon success, the undefined value otherwise.
 
@@ -354,17 +352,18 @@ This function returns nonzero upon success, the undefined value otherwise.
 
 =head2 Writing Milter Callbacks
 
-Writing Milter callbacks is pretty easy for simple text processing.
+Writing Milter callbacks is pretty easy when you're doing simple text
+processing.
 
-There is one critical thing to remember when writing a Milter callback: Each
-Milter callback could quite possibly run in a different instance of the Perl
-interpreter.
+But remember one thing: Each Milter callback could quite possibly run in a
+different instance of the Perl interpreter.
 
 B<Sendmail::Milter> launches multiple persistent Perl interpreters to increase
 performance (so it doesn't have to startup and shutdown the interpreters
 constantly). Thus, you can't rely on setting external package variables, global
 variables, or even running other modules which rely on such things. This will
 continue to be true while interpreter thread support in Perl is experimental.
+For more information, see L<perlfork>. Most of that information applies here.
 
 Remember to return one of the B<SMFIS_*> result codes from the callback
 routine. Remember there can be multiple message body chunks. And remember that
@@ -731,10 +730,10 @@ Enables the set of capabilities available to mail filters in V2 of Milter.
 
   my %my_milter_callbacks =
   (
-	'eoh' =>	'my_eoh_callback',
-	'body' =>	'my_body_callback',
-	'eom' =>	'my_eom_callback',
-	'abort' =>	'my_abort_callback',
+	'eoh' =>	\&my_eoh_callback,
+	'body' =>	\&my_body_callback,
+	'eom' =>	\&my_eom_callback,
+	'abort' =>	\&my_abort_callback,
   );
 
   sub my_eoh_callback

@@ -15,6 +15,7 @@
 struct interp_t
 {
 	PerlInterpreter *perl;
+	void *cache;
 	int requests;
 };
 
@@ -46,6 +47,9 @@ extern void unlock_interpreter(intpool_t *, interp_t *);
 
 extern interp_t *create_interpreter(intpool_t *);
 extern void cleanup_interpreter(intpool_t *, interp_t *);
+
+extern void alloc_interpreter_cache(interp_t *interp, size_t size);
+extern void free_interpreter_cache(interp_t *interp);
 
 extern int test_intpools(pTHX_ int, int, int, int, SV*);
 

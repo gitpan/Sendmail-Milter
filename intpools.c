@@ -77,6 +77,48 @@ init_interpreters(ipool, max_interp, max_requests)
 
 
 /*
+**  ALLOC_INTERPRETER_CACHE -- Allocate memory for interpreter cache.
+**
+**	Parameters:
+**		interp -- Interpreter to allocate cache for.
+**		size -- Size of cache to allocate.
+**
+**	Returns:
+**		none.
+**
+**	Warning:
+**		This routine is not thread-safe.
+*/
+
+void
+alloc_interpreter_cache(interp_t *interp, size_t size)
+{
+	if ((interp->cache = malloc(size)) == NULL)
+		croak("failed to allocate memory for interpreter cache.");
+}
+
+/*
+**  FREE_INTERPRETER_CACHE -- Free memory used by interpreter cache.
+**
+**	Parameters:
+**		interp -- Interpreter to free cache for.
+**
+**	Returns:
+**		none.
+**
+**	Warning:
+**		This routine is not thread-safe.
+*/
+
+void
+free_interpreter_cache(interp_t *interp)
+{
+	free(interp->cache);
+	interp->cache = NULL;
+}
+
+
+/*
 **  CREATE_INTERPRETER -- create an interpreter from the parent.
 **
 **	Parameters:
@@ -100,6 +142,7 @@ create_interpreter(ipool)
 
 	new_interp->perl = perl_clone(ipool->ip_parent, FALSE);
 	new_interp->requests = 1;
+	new_interp->cache = NULL;
 
 	{
 		/* Hack from modperl until Perl 5.6.1 */
@@ -139,6 +182,8 @@ cleanup_interpreter(ipool, del_interp)
 {
 	perl_destruct(del_interp->perl);
 	perl_free(del_interp->perl);
+
+	free_interpreter_cache(del_interp);
 
 	free(del_interp);
 }
@@ -384,40 +429,8 @@ cleanup_interpreters(ipool)
 typedef void *(*test_callback_ptr)(void *);
 
 static intpool_t T_pool;
-static pthread_mutex_t CV_mutex;
 
-static SV * CV_test_callback = (SV *)NULL;
-
-SV *
-test_get_local_sv(pTHX_ SV *callback)
-{
-	SV *local_callback;
-	int error;
-
-	/*
-	**  Okay, heavily undocumented, but here's the dirt...
-	**  Turns out from reading dougm's modperl_callback code that
-	**  CvPADLIST isn't being properly duplicated. Apparently this sv_dup
-	**  seems to fix the problem after poking around sv.c a bit. But I
-	**  could be wrong. Very, very, wrong. We shall see.
-	*/
-
-	/* Lock CVs */
-	if ((error = pthread_mutex_lock(&(CV_mutex))) != 0)
-		croak("mutex_lock failed in locking CV: %d", error);
-
-	if (!SvPOK(callback))
-		local_callback = sv_dup(callback);
-	else
-		local_callback = sv_2mortal(newSVsv(callback));
-
-	/* Unlock interpreter table */
-	if ((error = pthread_mutex_unlock(&(CV_mutex))) != 0)
-		croak("mutex_unlock failed in unlocking CV: %d", error);
-
-	return local_callback;
-}
-
+#define GLOBAL_TEST	"Sendmail::Milter::Callbacks::_test_callback"
 
 void
 test_run_callback(pTHX_ SV *callback)
@@ -435,10 +448,6 @@ test_run_callback(pTHX_ SV *callback)
 
 	printf("test_wrapper: Analysing callback...\n");
 
-	/* Lock CVs */
-	if ((error = pthread_mutex_lock(&CV_mutex)) != 0)
-		croak("mutex_lock failed in locking CVs: %d", error);
-
 	if (SvROK(callback) && (SvTYPE(SvRV(callback)) == SVt_PVCV))
 	{
 		printf("test_wrapper: It's a code reference to: 0x%08x\n",
@@ -455,10 +464,6 @@ test_run_callback(pTHX_ SV *callback)
 	printf("test_wrapper: Calling callback 0x%08x from aTHX 0x%08x.\n",
 		callback, aTHX);
 
-	/* Unlock interpreter table */
-	if ((error = pthread_mutex_unlock(&CV_mutex)) != 0)
-		croak("mutex_unlock failed in unlocking CVs: %d", error);
-
 	/*
 	**  Okay, heavily undocumented, but here's the dirt...
 	**  Turns out from reading dougm's modperl_callback code that
@@ -467,7 +472,7 @@ test_run_callback(pTHX_ SV *callback)
 	**  could be wrong. Very, very, wrong. We shall see.
 	*/
 
-	call_sv(test_get_local_sv(aTHX_ callback), G_DISCARD);
+	call_sv(callback, G_DISCARD);
 
         SPAGAIN;
         PUTBACK;
@@ -479,13 +484,16 @@ void *
 test_callback_wrapper(void *arg)
 {
         interp_t *interp;
+	SV *callback;
 
         if ((interp = lock_interpreter(&T_pool)) == NULL)
                 croak("test_wrapper: could not lock a new perl interpreter.");
 
 	PERL_SET_CONTEXT(interp->perl);
 
-        test_run_callback(aTHX_ CV_test_callback);
+	callback = get_sv(GLOBAL_TEST, FALSE);
+
+	test_run_callback(aTHX_ callback);
 
         unlock_interpreter(&T_pool, interp);
 
@@ -499,12 +507,15 @@ test_intpools(pTHX_ int max_interp, int max_requests, int i_max, int j_max,
 	int i;
 	int j;
 	pthread_t thread_id;
+	SV *global_callback;
 
 	printf("test_wrapper: Original interpreter cloned: 0x%08x\n", aTHX);
 
 	init_interpreters(&T_pool, max_interp, max_requests);
 
-	CV_test_callback = newSVsv(callback);
+	global_callback = get_sv(GLOBAL_TEST, TRUE);
+
+	sv_setsv(global_callback, callback);
 
 	for (i = 0; i < i_max; i++)
 	{

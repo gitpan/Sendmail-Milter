@@ -183,16 +183,16 @@ sub close_callback
 
 my %my_callbacks =
 (
-	'connect' =>	'connect_callback',
-	'helo' =>	'helo_callback',
-	'envfrom' =>	'envfrom_callback',
-	'envrcpt' =>	'envrcpt_callback',
-	'header' =>	'header_callback',
-	'eoh' =>	'eoh_callback',
-	'body' =>	'body_callback',
-	'eom' =>	'eom_callback',
-	'abort' =>	'abort_callback',
-	'close' =>	'close_callback',
+	'connect' =>	\&connect_callback,
+	'helo' =>	\&helo_callback,
+	'envfrom' =>	\&envfrom_callback,
+	'envrcpt' =>	\&envrcpt_callback,
+	'header' =>	\&header_callback,
+	'eoh' =>	\&eoh_callback,
+	'body' =>	\&body_callback,
+	'eom' =>	\&eom_callback,
+	'abort' =>	\&abort_callback,
+	'close' =>	\&close_callback,
 );
 
 BEGIN:

@@ -17,7 +17,7 @@ sub dottedline { '-' x 72 . "\n"; }
 sub perl_callback
 {
 	my $interp = shift;
-	
+
 	printf "---> Starting callback from interpreter: [0x%08x].\n", $interp;
 	sleep 1;
 	printf "---> Finished callback from interpreter: [0x%08x].\n", $interp;

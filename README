@@ -12,6 +12,21 @@ The interpreter pools portion (found in the intpools.c, intpools.h, and test.pl
 files) of this code is also available under the same terms as perl itself.
 
 
+About Sendmail::Milter
+----------------------
+
+Sendmail::Milter provides users with the ability to write mail filters in Perl
+that tightly integrate with sendmail's mail filter API.
+
+With this module, you can define and register Perl callbacks with the Milter
+engine. This module calls your perl callbacks using interpreters from a
+threaded persistent interpreter pool. Milter contexts are presented using an
+object-oriented style interface for performing operations on a Milter context.
+
+The main project web page for this module is:
+
+    http://sourceforge.net/projects/sendmail-milter/
+
 Prerequisites
 -------------
 
@@ -73,6 +88,14 @@ INPUT_MAIL_FILTER(`myfilter', `S=unix:/var/run/perl.sock, F=R')dnl
 
 to your .mc file. sample.pl isn't terribly interesting, but should give you a
 good feel for how mail filters are written with Sendmail::Milter.
+
+
+Mailing List
+------------
+
+You can subscribe to the sendmail-milter-users@lists.sourceforge.net mailing
+list. Instructions on how to do so can be found off the Sendmail::Milter
+project page.
 
 
 Known Bugs
