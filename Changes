@@ -1,0 +1,13 @@
+Revision history for Perl extension Sendmail::Milter.
+
+0.12  Thu Jul 13 11:16:17 2000
+	- Include sendmail's LICENSE file.
+0.11  Thu Jul  6 22:46:26 2000
+	- Now block for locking interpreters with condition variables.
+	- Successfully support code references and function names.
+	- Now support sendmail-8.11.0
+	- Fixed idiotic bug where all callbacks were going through
+	  one interpreter.
+
+0.10  Tue Jul  4 23:22:51 2000
+	- Never released, only for internal testing.
